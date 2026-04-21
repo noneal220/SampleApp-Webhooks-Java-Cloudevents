@@ -122,7 +122,18 @@ public class QuickBooksConfig {
         } else {
             LOG.info("Running in SANDBOX mode (test environment)");
         }
-        
+
+        // The SDK's bundled config.xml fails to load in this runtime
+        // (see "issue reading config.xml" warning above), so explicitly
+        // pin BASE_URL_QBO to the configured environment's host. Without
+        // this, DataService calls fall back to the production host and
+        // sandbox tokens get 3100 ApplicationAuthorizationFailed.
+        com.intuit.ipp.util.Config.setProperty(
+            com.intuit.ipp.util.Config.BASE_URL_QBO,
+            getEnvironmentBaseUrl() + "/v3/company"
+        );
+        LOG.info("SDK BASE_URL_QBO pinned to: {}/v3/company", getEnvironmentBaseUrl());
+
         LOG.info("=".repeat(70));
     }
     
