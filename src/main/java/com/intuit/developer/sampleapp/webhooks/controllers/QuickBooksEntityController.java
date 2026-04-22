@@ -12,6 +12,7 @@ import java.util.Map;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -23,6 +24,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.intuit.developer.sampleapp.webhooks.config.QuickBooksConfig;
 import com.intuit.ipp.core.Context;
 import com.intuit.ipp.core.ServiceType;
 import com.intuit.ipp.data.AccountBasedExpenseLineDetail;
@@ -60,6 +62,9 @@ import jakarta.servlet.http.HttpSession;
 public class QuickBooksEntityController {
     
     private static final Logger logger = LoggerFactory.getLogger(QuickBooksEntityController.class);
+
+    @Autowired
+    private QuickBooksConfig quickBooksConfig;
     
     @PostMapping("/customers")
     public ResponseEntity<Map<String, Object>> createCustomer(
@@ -1710,7 +1715,18 @@ public class QuickBooksEntityController {
         
         OAuth2Authorizer oauth2Authorizer = new OAuth2Authorizer(accessToken);
         Context context = new Context(oauth2Authorizer, ServiceType.QBO, realmId);
-        
+
+        // The SDK's Context constructor re-reads its bundled config.xml on
+        // every instantiation. That read fails in this runtime (see "issue
+        // reading config.xml" warning) and resets BASE_URL_QBO to the
+        // production default, so our boot-time override gets wiped out.
+        // Re-pin per-request AFTER Context is built but BEFORE the first
+        // HTTP call goes out.
+        com.intuit.ipp.util.Config.setProperty(
+            com.intuit.ipp.util.Config.BASE_URL_QBO,
+            quickBooksConfig.getEnvironmentBaseUrl() + "/v3/company"
+        );
+
         return new DataService(context);
     }
     
